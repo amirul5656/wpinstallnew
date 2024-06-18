@@ -31,9 +31,12 @@ install_openssh() {
     apt-get update
     apt-get install -y openssh-server
 
-    # Konfigurasi OpenSSH untuk WebSocket
-    # Isi konfigurasi sesuai dengan kebutuhan Anda
-    echo "OpenSSH berhasil diinstal untuk WebSocket."
+    # Verifikasi instalasi OpenSSH
+    if [ $? -eq 0 ]; then
+        echo "OpenSSH berhasil diinstal untuk WebSocket."
+    else
+        echo "Gagal melakukan instalasi OpenSSH."
+    fi
     read -n 1 -s -r -p "Tekan sembarang tombol untuk melanjutkan..."
 }
 
@@ -43,9 +46,12 @@ install_v2ray_vmess() {
     # Isi dengan langkah-langkah instalasi V2Ray VMESS
     bash <(curl -L -s https://install.direct/go.sh)
     
-    # Konfigurasi V2Ray VMESS
-    # Isi konfigurasi sesuai dengan kebutuhan Anda
-    echo "V2Ray (VMESS) berhasil diinstal."
+    # Verifikasi instalasi V2Ray VMESS
+    if [ $? -eq 0 ]; then
+        echo "V2Ray (VMESS) berhasil diinstal."
+    else
+        echo "Gagal melakukan instalasi V2Ray (VMESS)."
+    fi
     read -n 1 -s -r -p "Tekan sembarang tombol untuk melanjutkan..."
 }
 
@@ -55,9 +61,12 @@ install_v2ray_vless() {
     # Isi dengan langkah-langkah instalasi V2Ray VLESS
     bash <(curl -L -s https://install.direct/go.sh)
     
-    # Konfigurasi V2Ray VLESS
-    # Isi konfigurasi sesuai dengan kebutuhan Anda
-    echo "V2Ray (VLESS) berhasil diinstal."
+    # Verifikasi instalasi V2Ray VLESS
+    if [ $? -eq 0 ]; then
+        echo "V2Ray (VLESS) berhasil diinstal."
+    else
+        echo "Gagal melakukan instalasi V2Ray (VLESS)."
+    fi
     read -n 1 -s -r -p "Tekan sembarang tombol untuk melanjutkan..."
 }
 
@@ -69,9 +78,12 @@ install_wireguard() {
     apt-get update
     apt-get install -y wireguard
 
-    # Konfigurasi WireGuard
-    # Isi konfigurasi sesuai dengan kebutuhan Anda
-    echo "WireGuard berhasil diinstal."
+    # Verifikasi instalasi WireGuard
+    if [ $? -eq 0 ]; then
+        echo "WireGuard berhasil diinstal."
+    else
+        echo "Gagal melakukan instalasi WireGuard."
+    fi
     read -n 1 -s -r -p "Tekan sembarang tombol untuk melanjutkan..."
 }
 
