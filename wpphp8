@@ -24,29 +24,23 @@ sudo mysql -uroot -p -e "CREATE USER 'wordpressuser'@'localhost' IDENTIFIED BY '
 sudo mysql -uroot -p -e "GRANT ALL PRIVILEGES ON wordpress.* TO 'wordpressuser'@'localhost';"
 sudo mysql -uroot -p -e "FLUSH PRIVILEGES;"
 
-# Konfigurasi Nginx untuk WordPress
-sudo cat > /etc/nginx/sites-available/wordpress <<EOF
+
+# Membuat file konfigurasi Nginx
+cat <<EOL > $NGINX_CONF
 server {
     listen 80;
-    server_name hendra56.my.id; # Ganti dengan domain atau IP Anda
+    listen [::]:80;
 
-    root /var/www/html/wordpress;
-    index index.php index.html index.htm;
+    server_name $DOMAIN www.$DOMAIN;
+
+    root $DOC_ROOT;
+    index index.html;
 
     location / {
-        try_files \$uri \$uri/ /index.php?\$args;
-    }
-
-    location ~ \.php$ {
-        include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock; # Sesuaikan versi PHP yang Anda instal
-    }
-
-    location ~ /\.ht {
-        deny all;
+        try_files \$uri \$uri/ =404;
     }
 }
-EOF
+EOL
 
 # Aktifkan konfigurasi Nginx
 sudo ln -s /etc/nginx/sites-available/wordpress /etc/nginx/sites-enabled/
