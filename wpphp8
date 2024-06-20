@@ -8,15 +8,14 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Meminta input pengguna untuk nama domain dan password root MariaDB
+# Meminta input pengguna untuk nama domain, nama database, pengguna database, dan password root MariaDB
 read -p "Masukkan nama domain (contoh: example.com): " DOMAIN
+read -p "Masukkan nama database: " DB_NAME
+read -p "Masukkan nama pengguna database: " DB_USER
+read -sp "Masukkan password pengguna database: " DB_PASS
+echo
 read -sp "Masukkan password root MariaDB: " MARIADB_ROOT_PASSWORD
 echo
-
-# Nama database, pengguna database, dan password database
-DB_NAME="wordpress"
-DB_USER="wordpressuser"
-DB_PASS="password"
 
 DOC_ROOT="/var/www/html/$DOMAIN"
 NGINX_CONF="/etc/nginx/sites-available/$DOMAIN"
@@ -93,5 +92,49 @@ sed -i "s/password_here/$DB_PASS/" $DOC_ROOT/wp-config.php
 chown -R www-data:www-data $DOC_ROOT
 chmod -R 755 $DOC_ROOT
 
+# Instalasi Certbot untuk SSL
+apt-get install -y certbot python3-certbot-nginx
+
+# Memperoleh sertifikat SSL dari Let's Encrypt
+certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email youremail@example.com
+
+# Memperbarui konfigurasi Nginx untuk menggunakan SSL
+cat <<EOL > $NGINX_CONF
+server {
+    listen 80;
+    server_name $DOMAIN www.$DOMAIN;
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name $DOMAIN www.$DOMAIN;
+
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    root $DOC_ROOT;
+    index index.php index.html index.htm index.nginx-debian.html;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$args;
+    }
+
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+EOL
+
+# Reload Nginx untuk menerapkan perubahan
+nginx -t && systemctl reload nginx
+
 # Selesai
-echo "Instalasi WordPress dengan Nginx dan PHP 8.3 selesai. Anda bisa mengakses situs Anda pada http://$DOMAIN"
+echo "Instalasi WordPress dengan Nginx dan PHP 8.3 selesai. Anda bisa mengakses situs Anda pada https://$DOMAIN"
