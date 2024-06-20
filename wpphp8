@@ -24,6 +24,10 @@ mysql -e "CREATE USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';"
 mysql -e "GRANT ALL ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
 mysql -e "FLUSH PRIVILEGES;"
 
+DOC_ROOT="/var/www/hendra56.my.id/html"
+NGINX_CONF="/etc/nginx/sites-available/hendra56.my.id"
+NGINX_LINK="/etc/nginx/sites-enabled/hendra56.my.id"
+
 # Membuat direktori dokumen root
 mkdir -p $DOC_ROOT
 chown -R $USER:$USER $DOC_ROOT
