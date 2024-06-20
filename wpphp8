@@ -18,11 +18,11 @@ sudo apt-get install -y nginx mysql-server php8.3-fpm php8.3-mysql php8.3-curl p
 # Konfigurasi MySQL
 sudo mysql_secure_installation
 
-# Buat database untuk WordPress
-sudo mysql -uroot -p -e "CREATE DATABASE wordpress;"
-sudo mysql -uroot -p -e "CREATE USER 'wordpressuser'@'localhost' IDENTIFIED BY 'password';"
-sudo mysql -uroot -p -e "GRANT ALL PRIVILEGES ON wordpress.* TO 'wordpressuser'@'localhost';"
-sudo mysql -uroot -p -e "FLUSH PRIVILEGES;"
+# Langkah 2: Konfigurasi database MySQL
+mysql -e "CREATE DATABASE ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -e "CREATE USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';"
+mysql -e "GRANT ALL ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
+mysql -e "FLUSH PRIVILEGES;"
 
 
 # Membuat file konfigurasi Nginx
