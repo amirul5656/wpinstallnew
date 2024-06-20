@@ -28,17 +28,23 @@ sudo mysql -uroot -p -e "FLUSH PRIVILEGES;"
 # Membuat file konfigurasi Nginx
 cat <<EOL > $NGINX_CONF
 server {
-    listen 80;
-    listen [::]:80;
+        listen 80;
+        root /var/www/html/hendra56.my.id;
+        index index.php index.html index.htm index.nginx-debian.html;
+        server_name hendra56.my.id;
 
-    server_name $DOMAIN www.$DOMAIN;
+        location / {
+                try_files $uri $uri/ =404;
+        }
 
-    root $DOC_ROOT;
-    index index.html;
+        location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        }
 
-    location / {
-        try_files \$uri \$uri/ =404;
-    }
+        location ~ /\.ht {
+                deny all;
+        }
 }
 EOL
 
