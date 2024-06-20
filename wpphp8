@@ -8,7 +8,7 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Meminta input pengguna untuk nama domain, nama database, pengguna database, dan password root MariaDB
+# Meminta input pengguna untuk nama domain, nama database, pengguna database, password pengguna database, dan password root MariaDB
 read -p "Masukkan nama domain (contoh: example.com): " DOMAIN
 read -p "Masukkan nama database: " DB_NAME
 read -p "Masukkan nama pengguna database: " DB_USER
@@ -16,6 +16,7 @@ read -sp "Masukkan password pengguna database: " DB_PASS
 echo
 read -sp "Masukkan password root MariaDB: " MARIADB_ROOT_PASSWORD
 echo
+read -p "Masukkan email untuk sertifikat SSL: " SSL_EMAIL
 
 DOC_ROOT="/var/www/html/$DOMAIN"
 NGINX_CONF="/etc/nginx/sites-available/$DOMAIN"
@@ -96,7 +97,7 @@ chmod -R 755 $DOC_ROOT
 apt-get install -y certbot python3-certbot-nginx
 
 # Memperoleh sertifikat SSL dari Let's Encrypt
-certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email youremail@example.com
+certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL
 
 # Memperbarui konfigurasi Nginx untuk menggunakan SSL
 cat <<EOL > $NGINX_CONF
