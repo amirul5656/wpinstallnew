@@ -8,8 +8,12 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Nama domain, nama database, pengguna database, dan password database
-DOMAIN="hendra56.my.id"
+# Meminta input pengguna untuk nama domain dan password root MariaDB
+read -p "Masukkan nama domain (contoh: example.com): " DOMAIN
+read -sp "Masukkan password root MariaDB: " MARIADB_ROOT_PASSWORD
+echo
+
+# Nama database, pengguna database, dan password database
 DB_NAME="wordpress"
 DB_USER="wordpressuser"
 DB_PASS="password"
@@ -34,7 +38,7 @@ else
 fi
 
 # Konfigurasi MariaDB
-mysql -u root <<EOF
+mysql -u root -p"$MARIADB_ROOT_PASSWORD" <<EOF
 CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
 GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
