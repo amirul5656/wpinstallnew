@@ -249,17 +249,67 @@ server {
         }
 }
 EOL
+   DOC_ROOTT="/var/www/html/$NEW_DOMAIN"
 
-    # Aktifkan konfigurasi Nginx
-    ln -s $NGINX_CONF $NGINX_LINK
-    nginx -t && systemctl reload nginx
+# Konfigurasi MariaDB
+mysql -u root -p"$MARIADB_ROOT_PASSWORD" <<EOF
+CREATE DATABASE IF NOT EXISTS $NEW_DOMAIN DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';
+GRANT ALL PRIVILEGES ON $NEW_DOMAIN.* TO '$DB_USER'@'localhost';
+FLUSH PRIVILEGES;
+EOF
 
-    # Buat direktori dokumen root jika belum ada
-    mkdir -p $DOC_ROOT
-    chown -R www-data:www-data $DOC_ROOT
-    chmod -R 755 $DOC_ROOT
+# Membuat direktori dokumen root
+mkdir -p $DOC_ROOTT
+chown -R www-data:www-data $DOC_ROOTT
+chmod -R 755 $DOC_ROOTT
 
-    echo "Domain $NEW_DOMAIN telah ditambahkan dan dikonfigurasi di Nginx."
+# Membuat file konfigurasi Nginx
+cat <<EOL > $NGINX_CONF
+server {
+    listen 80;
+    root $DOC_ROOTT;
+    index index.php index.html index.htm index.nginx-debian.html;
+    server_name $NEW_DOMAIN www.$NEW_DOMAIN;
+
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+EOL
+
+# Aktifkan konfigurasi Nginx
+ln -s $NGINX_CONF $NGINX_LINK
+nginx -t && systemctl reload nginx
+
+# Unduh WordPress
+wget https://wordpress.org/latest.tar.gz -O /tmp/latest.tar.gz
+tar -xzvf /tmp/latest.tar.gz -C /tmp/
+cp -r /tmp/wordpress/* $DOC_ROOTT/
+rm /tmp/latest.tar.gz
+
+# Konfigurasi WordPress
+cp $DOC_ROOTT/wp-config-sample.php $DOC_ROOTT/wp-config.php
+sed -i "s/database_name_here/$NEW_DOMAIN/" $DOC_ROOTT/wp-config.php
+sed -i "s/username_here/$DB_USER/" $DOC_ROOTT/wp-config.php
+sed -i "s/password_here/$DB_PASS/" $DOC_ROOTT/wp-config.php
+
+# Setel hak akses
+chown -R www-data:www-data $DOC_ROOTT
+chmod -R 755 $DOC_ROOTT
+
+# Reload Nginx untuk menerapkan perubahan
+nginx -t && systemctl reload nginx
+
     
     kembali_ke_menu_utama
 }
