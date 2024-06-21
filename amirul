@@ -13,7 +13,7 @@
 # Skrip ini disediakan tanpa jaminan apa pun.
 # =======================================================
 
-# Tampilan yang ditampilkan saat skrip dimulai
+# Fungsi untuk menampilkan pesan selamat datang
 welcome_message() {
     clear
     echo -e "\e[1;32m=======================================================\e[0m"
@@ -42,56 +42,6 @@ show_menu() {
         5) exit ;;
         *) echo "Maaf, pilihan tidak valid"; show_menu ;;
     esac
-}
-
-# Fungsi untuk menghapus semua instalasi skrip
-uninstall_script() {
-    welcome_message
-    echo -e "\e[1;91mMenghapus Semua Instalasi Skrip\e[0m"
-    echo -e "\e[1;91m=======================================================\e[0m"
-    echo
-    echo "Anda yakin ingin menghapus semua instalasi skrip ini?"
-    echo "Tindakan ini akan menghapus konfigurasi Nginx, database, dan file-file terkait."
-    echo
-    read -p "Tekan [Y/y] untuk melanjutkan atau [N/n] untuk membatalkan: " choice
-    if [[ $choice =~ ^[Yy]$ ]]; then
-        # Hapus konfigurasi Nginx
-        rm -f /etc/nginx/sites-available/*
-        rm -f /etc/nginx/sites-enabled/*
-
-        # Hapus database yang telah dibuat
-        mysql -u root -p"$MARIADB_ROOT_PASSWORD" <<EOF
-        DROP DATABASE IF EXISTS ${DB_NAME};
-        DROP USER IF EXISTS '${DB_USER}'@'localhost';
-        FLUSH PRIVILEGES;
-EOF
-
-        # Hapus direktori dokumen root
-        rm -rf /var/www/html/*
-
-        echo -e "\e[1;92mSemua instalasi skrip telah dihapus.\e[0m"
-    else
-        echo -e "\e[1;92mPenghapusan instalasi skrip dibatalkan.\e[0m"
-    fi
-    echo
-    read -p "Tekan [Enter] untuk kembali ke menu utama."
-    show_menu
-}
-
-# Fungsi untuk instalasi manual software
-install_manual() {
-    welcome_message
-    echo -e "\e[1;96mInstalasi Manual Software\e[0m"
-    echo -e "\e[1;96m=======================================================\e[0m"
-    echo
-    echo "Silakan lakukan instalasi manual software yang Anda inginkan di sini."
-    echo "Pastikan Anda memiliki pengetahuan yang cukup sebelum melanjutkan."
-    echo
-    echo "Contoh: apt-get install nama_paket"
-    echo "Contoh: wget https://domain.com/paket.tar.gz && tar -xzvf paket.tar.gz && cd paket && ./install.sh"
-    echo
-    read -p "Tekan [Enter] untuk kembali ke menu utama."
-    show_menu
 }
 
 # Fungsi untuk instalasi WordPress
@@ -193,4 +143,62 @@ EOL
     # Memperoleh sertifikat SSL dari Let's Encrypt
     certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL
 
-    # SKrip gratis mantap
+    # Memperbarui konfigurasi Nginx untuk menggunakan SSL
+    cat <<EOL > $NGINX_CONF
+server {
+    listen 80;
+    server_name $DOMAIN www.$DOMAIN;
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name $DOMAIN www.$DOMAIN;
+
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    root $DOC_ROOT;
+    index index.php index.html index.htm index.nginx-debian.html;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$args;
+    }
+
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+EOL
+
+    # Reload Nginx untuk menerapkan perubahan
+    nginx -t && systemctl reload nginx
+
+    # Selesai
+    echo -e "\e[1;92mInstalasi WordPress dengan Nginx dan PHP 8.3 selesai.\e[0m"
+    echo -e "\e[1;92mAnda bisa mengakses situs Anda pada https://$DOMAIN\e[0m"
+}
+
+# Fungsi untuk menghapus semua instalasi skrip
+uninstall_script() {
+    welcome_message
+    echo -e "\e[1;91mMenghapus Semua Instalasi Skrip\e[0m"
+    echo -e "\e[1;91m=======================================================\e[0m"
+    echo
+    echo "Anda yakin ingin menghapus semua instalasi skrip ini?"
+    echo "Tindakan ini akan menghapus konfigurasi Nginx, database, dan file-file terkait."
+    echo
+    read -p "Tekan [Y/y] untuk melanjutkan atau [N/n] untuk membatalkan: " choice
+    if [[ $choice =~ ^[Yy]$ ]]; then
+        # Hapus konfigurasi Nginx
+        rm -f /etc/nginx/sites-available/*
+        rm -f /etc/nginx/sites-enabled/*
+
+        # H
