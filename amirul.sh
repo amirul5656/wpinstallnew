@@ -76,21 +76,69 @@ function install_wordpress() {
     FLUSH PRIVILEGES;
 EOF
 
-    # Membuat direktori dokumen root
-    mkdir -p $DOC_ROOT
-    chown -R www-data:www-data $DOC_ROOT
-    chmod -R 755 $DOC_ROOT
+    #!/bin/bash
 
-    # Membuat file konfigurasi Nginx
-    cat <<EOL > $NGINX_CONF
+# Script untuk instalasi WordPress dengan Nginx dan PHP 8.3 pada VPS Ubuntu
+
+# Periksa apakah script dijalankan dengan hak akses root
+if [[ $EUID -ne 0 ]]; then
+   echo "Script ini harus dijalankan sebagai root atau dengan sudo"
+   exit 1
+fi
+
+# Meminta input pengguna untuk nama domain, nama database, pengguna database, password pengguna database, dan password root MariaDB
+read -p "Masukkan nama domain (contoh: example.com): " DOMAIN
+read -p "Masukkan nama database: " DB_NAME
+read -p "Masukkan nama pengguna database: " DB_USER
+read -sp "Masukkan password pengguna database: " DB_PASS
+echo
+read -sp "Masukkan password root MariaDB: " MARIADB_ROOT_PASSWORD
+echo
+read -p "Masukkan email untuk sertifikat SSL: " SSL_EMAIL
+
+DOC_ROOT="/var/www/html/$DOMAIN"
+NGINX_CONF="/etc/nginx/sites-available/$DOMAIN"
+NGINX_LINK="/etc/nginx/sites-enabled/$DOMAIN"
+
+# Tambahkan repositori PHP 8.3
+add-apt-repository -y ppa:ondrej/php
+apt-get update
+
+# Install Nginx, PHP 8.3 serta ekstensi yang diperlukan
+apt-get install -y nginx php8.3-fpm php8.3-mysql php8.3-curl php8.3-gd php8.3-mbstring php8.3-xml php8.3-xmlrpc php8.3-soap php8.3-intl php8.3-zip unzip
+
+# Periksa apakah MariaDB sudah terinstal
+if ! dpkg -l | grep -q mariadb-server; then
+    echo "MariaDB tidak ditemukan. Menginstal MariaDB..."
+    apt-get install -y mariadb-server
+else
+    echo "MariaDB sudah terinstal."
+fi
+
+# Konfigurasi MariaDB
+mysql -u root -p"$MARIADB_ROOT_PASSWORD" <<EOF
+CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
+GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+
+# Membuat direktori dokumen root
+mkdir -p $DOC_ROOT
+chown -R www-data:www-data $DOC_ROOT
+chmod -R 755 $DOC_ROOT
+
+# Membuat file konfigurasi Nginx
+cat <<EOL > $NGINX_CONF
 server {
         listen 80;
-        root $DOC_ROOT;
-        index index.php index.html index.htm index.nginx-debian.html;
         server_name $DOMAIN www.$DOMAIN;
 
+        root $DOC_ROOT;
+        index index.php index.html index.htm;
+
         location / {
-                try_files \$uri \$uri/ =404;
+                try_files \$uri \$uri/ /index.php?\$args;
         }
 
         location ~ \.php\$ {
@@ -104,37 +152,34 @@ server {
 }
 EOL
 
-    # Aktifkan konfigurasi Nginx
-    ln -s $NGINX_CONF $NGINX_LINK
-    nginx -t && systemctl reload nginx
+# Aktifkan konfigurasi Nginx
+ln -s $NGINX_CONF $NGINX_LINK
+nginx -t && systemctl reload nginx
 
-    # Unduh WordPress
-    wget https://wordpress.org/latest.tar.gz -O /tmp/latest.tar.gz
-    tar -xzvf /tmp/latest.tar.gz -C /tmp/
-    cp -r /tmp/wordpress/* $DOC_ROOT/
-    rm /tmp/latest.tar.gz
+# Unduh WordPress
+wget https://wordpress.org/latest.tar.gz -O /tmp/latest.tar.gz
+tar -xzvf /tmp/latest.tar.gz -C /tmp/
+cp -r /tmp/wordpress/* $DOC_ROOT/
+rm /tmp/latest.tar.gz
 
-    # Konfigurasi WordPress
-    cp $DOC_ROOT/wp-config-sample.php $DOC_ROOT/wp-config.php
-    sed -i "s/database_name_here/$DB_NAME/" $DOC_ROOT/wp-config.php
-    sed -i "s/username_here/$DB_USER/" $DOC_ROOT/wp-config.php
-    sed -i "s/password_here/$DB_PASS/" $DOC_ROOT/wp-config.php
+# Konfigurasi WordPress
+cp $DOC_ROOT/wp-config-sample.php $DOC_ROOT/wp-config.php
+sed -i "s/database_name_here/$DB_NAME/" $DOC_ROOT/wp-config.php
+sed -i "s/username_here/$DB_USER/" $DOC_ROOT/wp-config.php
+sed -i "s/password_here/$DB_PASS/" $DOC_ROOT/wp-config.php
 
-    # Setel hak akses
-    chown -R www-data:www-data $DOC_ROOT
-    chmod -R 755 $DOC_ROOT
+# Setel hak akses
+chown -R www-data:www-data $DOC_ROOT
+chmod -R 755 $DOC_ROOT
 
-    # Instalasi Certbot untuk SSL
-    apt-get install -y certbot python3-certbot-nginx
+# Instalasi Certbot untuk SSL
+apt-get install -y certbot python3-certbot-nginx
 
-    # Memperoleh sertifikat SSL dari Let's Encrypt
-    certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL
+# Memperoleh sertifikat SSL dari Let's Encrypt
+certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL
 
-    # Simpan konfigurasi Nginx sebelum SSL
-    mv $NGINX_CONF ${NGINX_CONF}.bak
-
-    # Memperbarui konfigurasi Nginx untuk menggunakan SSL
-    cat <<EOL > $NGINX_CONF
+# Memperbarui konfigurasi Nginx untuk menggunakan SSL
+cat <<EOL > $NGINX_CONF
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
@@ -151,7 +196,7 @@ server {
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     root $DOC_ROOT;
-    index index.php index.html index.htm index.nginx-debian.html;
+    index index.php index.html index.htm;
 
     location / {
         try_files \$uri \$uri/ /index.php?\$args;
@@ -168,11 +213,11 @@ server {
 }
 EOL
 
-    # Reload Nginx untuk menerapkan perubahan
-    nginx -t && systemctl reload nginx
+# Reload Nginx untuk menerapkan perubahan
+nginx -t && systemctl reload nginx
 
-    # Selesai
-    echo "Instalasi WordPress dengan Nginx dan PHP 8.3 selesai. Anda bisa mengakses situs Anda pada https://$DOMAIN"
+# Selesai
+echo "Instalasi WordPress dengan Nginx dan PHP 8.3 selesai. Anda bisa mengakses situs Anda pada https://$DOMAIN"
 
     kembali_ke_menu_utama
 }
