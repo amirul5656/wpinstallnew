@@ -93,7 +93,6 @@ EOL
     wget https://wordpress.org/latest.tar.gz -O /tmp/latest.tar.gz
     tar -xzvf /tmp/latest.tar.gz -C /tmp/
     cp -r /tmp/wordpress/* $DOC_ROOT/
-    rm -r /tmp/wordpress /tmp/latest.tar.gz  # Remove temporary WordPress files
 
     # Configure WordPress
     cp $DOC_ROOT/wp-config-sample.php $DOC_ROOT/wp-config.php
