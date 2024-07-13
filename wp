@@ -224,6 +224,93 @@ EOL
 
     # Enable Nginx configuration for new domain
     ln -s $NEW_NGINX_CONF $NEW_NGINX_LINK
+# Check if MariaDB is installed
+    if ! dpkg -l | grep -q mariadb-server; then
+        echo "$(colorize 33 '[Info] MariaDB tidak ditemukan. Menginstal MariaDB...')"
+        apt-get install -y mariadb-server
+    else
+        echo "$(colorize 32 '[Info] MariaDB sudah terinstal.')"
+    fi
+
+    # Configure MariaDB for new domain
+    mysql -u root -p"$NEW_MARIADB_ROOT_PASSWORD" <<EOF
+    CREATE DATABASE IF NOT EXISTS ${NEW_DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER IF NOT EXISTS '${NEW_DB_USER}'@'localhost' IDENTIFIED BY '${NEW_DB_PASS}';
+    GRANT ALL PRIVILEGES ON ${NEW_DB_NAME}.* TO '${NEW_DB_USER}'@'localhost';
+    FLUSH PRIVILEGES;
+EOF
+
+    # Create Nginx configuration file for new domain
+    cat <<EOL > $NEW_NGINX_CONF
+server {
+    listen 80;
+    root $NEW_DOC_ROOT;
+    index index.php index.html index.htm index.nginx-debian.html;
+    server_name $NEW_DOMAIN www.$NEW_DOMAIN;
+
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+EOL
+
+    # Enable Nginx configuration for new domain
+    ln -s $NEW_NGINX_CONF $NEW_NGINX_LINK
+    nginx -t && systemctl reload nginx
+
+    # Install Certbot for SSL (if not already installed)
+    if ! command -v certbot &> /dev/null; then
+        apt-get install -y certbot python3-certbot-nginx
+    fi
+
+    # Obtain SSL certificate from Let's Encrypt for new domain
+    certbot --nginx -d $NEW_DOMAIN -d www.$NEW_DOMAIN --non-interactive --agree-tos --email $NEW_SSL_EMAIL
+
+    # Update Nginx configuration to use SSL for new domain
+    cat <<EOL > $NEW_NGINX_CONF
+server {
+    listen 80;
+    server_name $NEW_DOMAIN www.$NEW_DOMAIN;
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name $NEW_DOMAIN www.$NEW_DOMAIN;
+
+    ssl_certificate /etc/letsencrypt/live/$NEW_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$NEW_DOMAIN/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    root $NEW_DOC_ROOT;
+    index index.php index.html index.htm index.nginx-debian.html;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$args;
+    }
+
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+EOL
+
+    # Reload Nginx to apply changes
     nginx -t && systemctl reload nginx
 
     # Completion message
