@@ -93,7 +93,7 @@ EOL
     wget https://wordpress.org/latest.tar.gz -O /tmp/latest.tar.gz
     tar -xzvf /tmp/latest.tar.gz -C /tmp/
     cp -r /tmp/wordpress/* $DOC_ROOT/
-    rm /tmp/latest.tar.gz
+    rm -r /tmp/wordpress /tmp/latest.tar.gz  # Remove temporary WordPress files
 
     # Configure WordPress
     cp $DOC_ROOT/wp-config-sample.php $DOC_ROOT/wp-config.php
@@ -168,7 +168,7 @@ menu_add_domain() {
 
     NEW_DOC_ROOT="/var/www/html/$NEW_DOMAIN"
     NEW_NGINX_CONF="/etc/nginx/sites-available/$NEW_DOMAIN"
-    NEW_NGINX_LINK="/etc/nginx/sites-enabled/$NEW_DOMAIN"    
+    NEW_NGINX_LINK="/etc/nginx/sites-enabled/$NEW_DOMAIN"
 
     # Create document root directory for new domain
     mkdir -p $NEW_DOC_ROOT
@@ -183,12 +183,13 @@ menu_add_domain() {
         echo "$(colorize 32 '[Info] MariaDB sudah terinstal.')"
     fi
 
-    # Configure MariaDB
+    # Configure MariaDB for new domain
     mysql -u root -p"$NEW_MARIADB_ROOT_PASSWORD" <<EOF
     CREATE DATABASE IF NOT EXISTS ${NEW_DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     CREATE USER IF NOT EXISTS '${NEW_DB_USER}'@'localhost' IDENTIFIED BY '${NEW_DB_PASS}';
     GRANT ALL PRIVILEGES ON ${NEW_DB_NAME}.* TO '${NEW_DB_USER}'@'localhost';
     FLUSH PRIVILEGES;
+EOF
 
     # Create Nginx configuration file for new domain
     cat <<EOL > $NEW_NGINX_CONF
@@ -213,15 +214,7 @@ server {
 }
 EOL
 
-    # Enable Nginx configuration for new domain
-    ln -s $NEW_NGINX_CONF $NEW_NGINX_LINK
-    nginx -t && systemctl reload nginx
-      
-    # Enable Nginx configuration
-    ln -s $NGINX_CONF $NEW_NGINX_LINK
-    nginx -t && systemctl reload nginx
-
-    # Pindah WordPress ke Domain Baru
+    # copy WordPress ke domain baru
     cp -r /tmp/wordpress/* $NEW_DOC_ROOT/
 
     # Configure WordPress
@@ -230,11 +223,9 @@ EOL
     sed -i "s/username_here/$NEW_DB_USER/" $NEW_DOC_ROOT/wp-config.php
     sed -i "s/password_here/$NEW_DB_PASS/" $NEW_DOC_ROOT/wp-config.php
 
-    # Install Certbot for SSL for new domain
-    apt-get install -y certbot python3-certbot-nginx
-
-    # Obtain SSL certificate from Let's Encrypt for new domain
-    certbot --nginx -d $NEW_DOMAIN -d www.$NEW_DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL
+# Enable Nginx configuration for new domain
+    ln -s $NEW_NGINX_CONF $NEW_NGINX_LINK
+    nginx -t && systemctl reload nginx
 
     # Completion message
     echo "$(colorize 32 '[Success] Penambahan domain baru selesai. Anda bisa mengakses situs baru Anda pada https://$NEW_DOMAIN')"
