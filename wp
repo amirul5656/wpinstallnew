@@ -149,7 +149,7 @@ EOL
     nginx -t && systemctl reload nginx
 
     # Completion message
-    echo "$(colorize 32 '[Success] Instalasi WordPress dengan Nginx dan PHP 8.3 selesai. Anda bisa mengakses situs Anda pada https://$DOMAIN')"
+    echo "Instalasi WordPress dengan Nginx dan PHP 8.3 selesai. Anda bisa mengakses situs Anda pada https://$DOMAIN"
 }
 
 # Menu 2: Tambah Domain Baru
@@ -222,28 +222,36 @@ EOL
     sed -i "s/username_here/$NEW_DB_USER/" $NEW_DOC_ROOT/wp-config.php
     sed -i "s/password_here/$NEW_DB_PASS/" $NEW_DOC_ROOT/wp-config.php
 
-# Enable Nginx configuration for new domain
+    # Enable Nginx configuration for new domain
     ln -s $NEW_NGINX_CONF $NEW_NGINX_LINK
     nginx -t && systemctl reload nginx
 
     # Completion message
-    echo "$(colorize 32 '[Success] Penambahan domain baru selesai. Anda bisa mengakses situs baru Anda pada https://$NEW_DOMAIN')"
+    echo "Instalasi WordPress dengan Nginx dan PHP 8.3 selesai. Anda bisa mengakses situs Anda pada https://$NEW_DOMAIN"
 }
 
-# Main menu selection
-echo "Pilih menu yang ingin Anda jalankan:"
-echo "1. Instalasi WordPress dengan Nginx dan PHP 8.3"
-echo "2. Tambah Domain Baru"
-read -p "Masukkan pilihan (1 atau 2): " MENU_CHOICE
+# Main loop untuk menu utama
+while true; do
+    echo "Pilih menu yang ingin Anda jalankan:"
+    echo "1. Instalasi WordPress dengan Nginx dan PHP 8.3"
+    echo "2. Tambah Domain Baru"
+    echo "3. Keluar"
 
-case $MENU_CHOICE in
-    1)
-        menu_install_wordpress
-        ;;
-    2)
-        menu_add_domain
-        ;;
-    *)
-        echo "$(colorize 31 'Pilihan tidak valid. Harap pilih 1 atau 2.')"
-        ;;
-esac
+    read -p "Masukkan pilihan (1, 2, atau 3): " MENU_CHOICE
+
+    case $MENU_CHOICE in
+        1)
+            menu_install_wordpress
+            ;;
+        2)
+            menu_add_domain
+            ;;
+        3)
+            echo "$(colorize 32 'Terima kasih telah menggunakan skrip ini.')"
+            break
+            ;;
+        *)
+            echo "$(colorize 31 'Pilihan tidak valid. Harap pilih 1, 2, atau 3.')"
+            ;;
+    esac
+done
