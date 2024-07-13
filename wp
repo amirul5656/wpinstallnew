@@ -158,22 +158,37 @@ menu_add_domain() {
     bold "Tambah Domain Baru"
     echo
     read -p "$(bold 'Masukkan nama domain baru (contoh: newdomain.com): ')" NEW_DOMAIN
-    read -p "$(bold 'Masukkan email untuk sertifikat SSL: ')" SSL_EMAIL
-
-    NEW_DOC_ROOT="/var/www/html/$NEW_DOMAIN"
-    NEW_NGINX_CONF="/etc/nginx/sites-available/$NEW_DOMAIN"
     read -p "$(bold 'Masukkan nama database: ')" NEW_DB_NAME
     read -p "$(bold 'Masukkan nama pengguna database: ')" NEW_DB_USER
     read -sp "$(bold 'Masukkan password pengguna database: ')" NEW_DB_PASS
     echo
     read -sp "$(bold 'Masukkan password root MariaDB: ')" NEW_MARIADB_ROOT_PASSWORD
     echo
-    NEW_NGINX_LINK="/etc/nginx/sites-enabled/$NEW_DOMAIN"
+    read -p "$(bold 'Masukkan email untuk sertifikat SSL: ')" NEW_SSL_EMAIL
+
+    NEW_DOC_ROOT="/var/www/html/$NEW_DOMAIN"
+    NEW_NGINX_CONF="/etc/nginx/sites-available/$NEW_DOMAIN"
+    NEW_NGINX_LINK="/etc/nginx/sites-enabled/$NEW_DOMAIN"    
 
     # Create document root directory for new domain
     mkdir -p $NEW_DOC_ROOT
     chown -R www-data:www-data $NEW_DOC_ROOT
     chmod -R 755 $NEW_DOC_ROOT
+
+    # Check if MariaDB is installed
+    if ! dpkg -l | grep -q mariadb-server; then
+        echo "$(colorize 33 '[Info] MariaDB tidak ditemukan. Menginstal MariaDB...')"
+        apt-get install -y mariadb-server
+    else
+        echo "$(colorize 32 '[Info] MariaDB sudah terinstal.')"
+    fi
+
+    # Configure MariaDB
+    mysql -u root -p"$NEW_MARIADB_ROOT_PASSWORD" <<EOF
+    CREATE DATABASE IF NOT EXISTS ${NEW_DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER IF NOT EXISTS '${NEW_DB_USER}'@'localhost' IDENTIFIED BY '${NEW_DB_PASS}';
+    GRANT ALL PRIVILEGES ON ${NEW_DB_NAME}.* TO '${NEW_DB_USER}'@'localhost';
+    FLUSH PRIVILEGES;
 
     # Create Nginx configuration file for new domain
     cat <<EOL > $NEW_NGINX_CONF
